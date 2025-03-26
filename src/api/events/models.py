@@ -2,18 +2,17 @@
 from sqlmodel import SQLModel, Field
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
-import sqlmodel
 from timescaledb import TimescaleModel
 from timescaledb.utils import get_utc_now
 
 
 class EventModel(TimescaleModel, table=True):
-    page: str = Field(index=True)  # /about, /contacts, #pricing
+    page: str = Field(index=True)
     user_agent: Optional[str] = Field(default="", index=True)
     ip_address: Optional[str] = Field(default="", index=True)
     referrer: Optional[str] = Field(default="", index=True)
     session_id: Optional[str] = Field(index=True)
-    duration = Optional[int] = Field(default=0)
+    duration: Optional[int] = Field(default=0)
 
     __chunk_time_interval__ = "INTERVAL 1 day"
     __drop_after__ = "INTERVAL 3 months"
@@ -25,10 +24,13 @@ class EventCreateSchema(SQLModel):
     ip_address: Optional[str] = Field(default="", index=True)
     referrer: Optional[str] = Field(default="", index=True)
     session_id: Optional[str] = Field(index=True)
-    duration = Optional[int] = Field(default=0)
+    duration: Optional[int] = Field(default=0)
 
 
 class EventBucketSchema(SQLModel):
     bucket: datetime
+    ua: Optional[str] = ""
+    operating_system: Optional[str] = ""
+    avg_duration: Optional[float] = 0.0
     page: str
     count: int

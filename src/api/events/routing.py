@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 from timescaledb.utils import get_utc_now
 from api.events.models import EventModel
 from timescaledb.hyperfunctions import time_bucket
-from sqlalchemy import func
+from sqlalchemy import func, Case
 from typing import List
 
 from .models import (
@@ -15,7 +15,11 @@ from .models import (
 )
 router = APIRouter()
 
-DEFAULT_LOOKUP_PAGES = ["/about", "/contact", "/pages", "pricing"]
+DEFAULT_LOOKUP_PAGES = [
+    "/", "/about", "/pricing", "/contact",
+    "/blog", "/products", "/login", "/signup",
+    "/dashboard", "/settings"
+]
 
 # list
 
@@ -27,13 +31,25 @@ def read_events(
     session: Session = Depends(get_session),
 
 ):
+
+    os_case = Case(
+        (EventModel.user_agent.ilike('%windows%'), 'Windows'),
+        (EventModel.user_agent.ilike('%macintosh%'), 'MacOs'),
+        (EventModel.user_agent.ilike('%iphone%'), 'iOS'),
+        (EventModel.user_agent.ilike('%android%'), 'Android'),
+        (EventModel.user_agent.ilike('%linux%'), 'Linux'),
+        else_="Other"
+    ).label('operating_system')
+
     bucket = time_bucket(duration, EventModel.time)
     lookup_pages = pages if isinstance(pages, list) and len(
         pages) > 0 else DEFAULT_LOOKUP_PAGES
     query = (
         select(
             bucket.label('bucket'),
+            os_case,
             EventModel.page.label('page'),
+            func.avg(EventModel.duration).label('avg_duration'),
             func.count().label('count')
         )
         .where(
@@ -41,10 +57,12 @@ def read_events(
         )
         .group_by(
             bucket,
+            os_case,
             EventModel.page,
         )
         .order_by(
             bucket,
+            os_case,
             EventModel.page
         )
     )
